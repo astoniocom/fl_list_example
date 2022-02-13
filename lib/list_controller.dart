@@ -4,22 +4,25 @@ import 'package:fl_list_example/repository.dart';
 import 'package:flutter/foundation.dart';
 
 class ListController extends ValueNotifier<ListState> {
-  ListController() : super(ListState()) {
-    loadRecords();
+
+  ListController({required this.query}) : super(ListState()) {
+    loadRecords(query);
   }
 
-  Future<List<ExampleRecord>> _fetchRecords() async {
-    final loadedRecords = await MockRepository().queryRecords();
+  final ExampleRecordQuery query;
+
+  Future<List<ExampleRecord>> _fetchRecords(ExampleRecordQuery? query) async {
+    final loadedRecords = await MockRepository().queryRecords(query);
     return loadedRecords;
   }
 
-  Future<void> loadRecords() async {
+  Future<void> loadRecords(ExampleRecordQuery? query) async {
     if (value.isLoading) return;
 
     value = value.copyWith(stage: ListStage.loading);
 
     try {
-      final fetchResult = await _fetchRecords();
+      final fetchResult = await _fetchRecords(query);
 
       value = value.copyWith(
         stage: ListStage.idle,
@@ -32,6 +35,6 @@ class ListController extends ValueNotifier<ListState> {
   }
 
   repeatQuery() {
-    return loadRecords();
+    return loadRecords(query);
   }
 }
