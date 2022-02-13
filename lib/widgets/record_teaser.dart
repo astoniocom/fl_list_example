@@ -1,11 +1,12 @@
 import 'dart:math';
 import 'package:english_words/english_words.dart';
+import 'package:fl_list_example/record_cubit.dart';
 import 'package:fl_list_example/repository.dart';
-import 'package:fl_list_example/models.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class RecordTeaser extends StatelessWidget {
-  final ExtendedExampleRecord record;
+  final ExampleRecordCubit record;
 
   const RecordTeaser({required this.record, Key? key}) : super(key: key);
 
@@ -45,18 +46,23 @@ class RecordTeaser extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      selected: record.isFavourite,
-      title: Text(record.title),
-      subtitle: Text("weight: ${record.weight}"),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(onPressed: () => _createRecord(context), icon: const Icon(Icons.new_label)),
-          IconButton(onPressed: () => _updateRecord(context), icon: const Icon(Icons.edit)),
-          IconButton(onPressed: () => _deleteRecord(context), icon: const Icon(Icons.delete)),
-        ],
-      ),
+    return ChangeNotifierProvider.value(
+      value: record,
+      child: Builder(builder: (context) {
+        final record = context.watch<ExampleRecordCubit>();
+        return ListTile(
+          title: Text(record.title),
+          subtitle: Text("weight: ${record.weight}"),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(onPressed: () => _createRecord(context), icon: const Icon(Icons.new_label)),
+              IconButton(onPressed: () => _updateRecord(context), icon: const Icon(Icons.edit)),
+              IconButton(onPressed: () => _deleteRecord(context), icon: const Icon(Icons.delete)),
+            ],
+          ),
+        );
+      }),
     );
   }
 }

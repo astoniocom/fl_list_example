@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:fl_list_example/record_cubit.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:collection/collection.dart';
 import 'package:fl_list_example/list_state.dart';
@@ -17,13 +18,13 @@ class RecordsUpdates {
 
 class _ListChange {
   final Iterable<ExampleRecord> recordsToInsert;
-  final Iterable<ExtendedExampleRecord> recordsToRemove;
+  final Iterable<ExampleRecordCubit> recordsToRemove;
 
   _ListChange({this.recordsToInsert = const {}, this.recordsToRemove = const {}});
 }
 
 class _FetchRecordsResult {
-  final List<ExtendedExampleRecord> records;
+  final List<ExampleRecordCubit> records;
   final bool loadedAllRecords;
 
   _FetchRecordsResult({required this.records, required this.loadedAllRecords});
@@ -44,26 +45,23 @@ class ListController extends ValueNotifier<ListState> {
         .where((event) => event.isNotEmpty)
         .asyncMap((event) async {
           final createdIds = event.whereType<RecordCreatedEvent>().map((e) => e.id);
-          final updatedIds = event.whereType<RecordUpdatedEvent>().map((e) => e.id);
-          final idsToResolve = {...createdIds, ...updatedIds};
-          final resolvedRecords = (await MockRepository().getByIds(idsToResolve)).toSet();
+          final resolvedRecords = (await MockRepository().getByIds(createdIds)).toSet();
 
           return RecordsUpdates(
             insertedRecords: resolvedRecords.where((r) => createdIds.contains(r.id)).toSet(),
-            updatedRecords: resolvedRecords.where((r) => updatedIds.contains(r.id)).toSet(),
+            updatedRecords: {},
             deletedKeys: event.whereType<RecordDeletedEvent>().map((e) => e.id).toSet(),
           );
         })
         .map(_filterRecords)
         .where((event) => event.recordsToInsert.isNotEmpty || event.recordsToRemove.isNotEmpty)
-        .asyncMap((change) async {
-          return lock.synchronized(() async {
-            final result = List.of(value.records)..removeWhere((r) => change.recordsToRemove.contains(r));
-            return result..insertAll(0, await MockRepository().extendRecords(change.recordsToInsert));
-          });
+        .map((change) {
+          change.recordsToRemove.every((r) => r.close());
+          final result = List.of(value.records)..removeWhere((r) => change.recordsToRemove.contains(r));
+          return result..insertAll(0, change.recordsToInsert.map((r) => ExampleRecordCubit(r)));
         })
         .map((updatedList) {
-          return updatedList..sort((r1, r2) => query.compareRecords(r1.base, r2.base));
+          return updatedList..sort((r1, r2) => query.compareRecords(r1.value, r2.value));
         })
         .listen((updatedList) {
           value = value.copyWith(records: updatedList);
@@ -105,15 +103,23 @@ class ListController extends ValueNotifier<ListState> {
     );
   }
 
+  _closeAllRecords() {
+    for (final r in value.records) {
+      r.close();
+    }
+  }
+
   @override
   void dispose() {
+    _closeAllRecords();
     _changesSubscription.cancel();
     super.dispose();
   }
 
   Future<_FetchRecordsResult> fetchRecords(ExampleRecordQuery? query) async {
     final loadedRecords = await MockRepository().queryRecords(query);
-    return _FetchRecordsResult(records: await MockRepository().extendRecords(loadedRecords), loadedAllRecords: loadedRecords.length < kBatchSize);
+    return _FetchRecordsResult(
+        records: loadedRecords.map((r) => ExampleRecordCubit(r)).toList(), loadedAllRecords: loadedRecords.length < kBatchSize);
   }
 
   Future<void> loadRecords({ExampleRecordQuery? query, bool replace = true}) async {
@@ -123,6 +129,8 @@ class ListController extends ValueNotifier<ListState> {
 
       try {
         final fetchResult = await fetchRecords(query);
+
+        if (replace) _closeAllRecords();
 
         final records = [
           if (!replace) ...value.records,
