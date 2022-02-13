@@ -1,6 +1,7 @@
 import 'package:fl_list_example/list_controller.dart';
 import 'package:fl_list_example/models.dart';
 import 'package:fl_list_example/widgets/list_status_indicator.dart';
+import 'package:fl_list_example/widgets/record_teaser.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -15,7 +16,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: ChangeNotifierProvider(
-        create: (_) => ListController(),
+        create: (_) => ListController(query: const ExampleRecordQuery(contains: "ea")),
         child: const HomePage(),
       ),
     );
@@ -39,7 +40,7 @@ class HomePage extends StatelessWidget {
           }
 
           final ExampleRecord record = listState.records[index];
-          return ListTile(title: Text(record.title));
+          return RecordTeaser(record: record);
         },
         itemCount: itemCount,
       ),
