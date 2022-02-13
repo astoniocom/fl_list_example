@@ -1,10 +1,10 @@
-import 'package:fl_list_example/models.dart';
+import 'package:fl_list_example/record_cubit.dart';
 
 enum ListStage { idle, loading, error, complete }
 
 class ListState {
   ListState({
-    List<ExtendedExampleRecord>? records,
+    List<ExampleRecordCubit>? records,
     this.stage = ListStage.idle,
   }) : recordsStore = records {
     if (isInitialized && stage != ListStage.complete && this.records.isEmpty) {
@@ -12,20 +12,19 @@ class ListState {
     }
   }
 
-  final List<ExtendedExampleRecord>? recordsStore;
-
+  final List<ExampleRecordCubit>? recordsStore;
   bool get isInitialized => recordsStore != null;
 
   final ListStage stage;
 
-  List<ExtendedExampleRecord> get records => recordsStore ?? List<ExtendedExampleRecord>.empty();
+  List<ExampleRecordCubit> get records => recordsStore ?? List<ExampleRecordCubit>.empty();
 
   bool get hasError => stage == ListStage.error;
 
   bool get isLoading => stage == ListStage.loading;
 
   ListState copyWith({
-    List<ExtendedExampleRecord>? records,
+    List<ExampleRecordCubit>? records,
     ListStage? stage,
   }) {
     return ListState(

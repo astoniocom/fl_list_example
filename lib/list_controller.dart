@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:fl_list_example/record_cubit.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:collection/collection.dart';
 import 'package:fl_list_example/list_state.dart';
@@ -23,7 +24,7 @@ class _ListChange {
 }
 
 class _FetchRecordsResult {
-  final List<ExtendedExampleRecord> records;
+  final List<ExampleRecordCubit> records;
   final bool loadedAllRecords;
 
   _FetchRecordsResult({required this.records, required this.loadedAllRecords});
@@ -40,30 +41,28 @@ class ListController extends ValueNotifier<ListState> {
         .where((event) => event.isNotEmpty)
         .asyncMap((event) async {
           final createdIds = event.whereType<RecordCreatedEvent>().map((e) => e.id);
-          final updatedIds = event.whereType<RecordUpdatedEvent>().map((e) => e.id);
-          final idsToResolve = {...createdIds, ...updatedIds};
-          final resolvedRecords = (await MockRepository().getByIds(idsToResolve)).toSet();
+          final resolvedRecords = (await MockRepository().getByIds(createdIds)).toSet();
 
           return RecordsUpdates(
             insertedRecords: resolvedRecords.where((r) => createdIds.contains(r.id)).toSet(),
-            updatedRecords: resolvedRecords.where((r) => updatedIds.contains(r.id)).toSet(),
+            updatedRecords: {},
             deletedKeys: event.whereType<RecordDeletedEvent>().map((e) => e.id).toSet(),
           );
         })
         .map(_filterRecords)
         .where((event) => event.recordsToInsert.isNotEmpty || event.recordsToRemove.isNotEmpty)
-        .asyncMap((change) async {
-          return lock.synchronized(() async {
-            return value.records.where((r) => !change.recordsToRemove.contains(r.id)).toList()
-              ..insertAll(0, await MockRepository().extendRecords(change.recordsToInsert))
-              ..sort((r1, r2) => query.compareRecords(r1.base, r2.base));
-          });
+        .map((change) {
+          value.records.where((r) => change.recordsToRemove.contains(r.id)).forEach((r) => r.close());
+
+          return value.records.where((r) => !change.recordsToRemove.contains(r.id)).toList()
+            ..insertAll(0, change.recordsToInsert.map((r) => ExampleRecordCubit(r)))
+            ..sort((r1, r2) => query.compareRecords(r1.value, r2.value));
         })
         .listen((updatedList) {
           value = value.copyWith(records: updatedList);
         });
   }
-  
+
   final ExampleRecordQuery query;
   late StreamSubscription _changesSubscription;
   final lock = Lock();
@@ -113,8 +112,15 @@ class ListController extends ValueNotifier<ListState> {
     );
   }
 
+  _closeAllRecords() {
+    for (final r in value.records) {
+      r.close();
+    }
+  }
+
   @override
   void dispose() {
+    _closeAllRecords();
     _changesSubscription.cancel();
     super.dispose();
   }
@@ -122,7 +128,7 @@ class ListController extends ValueNotifier<ListState> {
   Future<_FetchRecordsResult> _fetchRecords(ExampleRecordQuery? query) async {
     final loadedRecords = await MockRepository().queryRecords(query);
     return _FetchRecordsResult(
-      records: await MockRepository().extendRecords(loadedRecords),
+      records: loadedRecords.map((r) => ExampleRecordCubit(r)).toList(),
       loadedAllRecords: loadedRecords.length < kBatchSize,
     );
   }
