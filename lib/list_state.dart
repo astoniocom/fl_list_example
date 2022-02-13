@@ -4,7 +4,7 @@ enum ListStage { idle, loading, error, complete }
 
 class ListState {
   ListState({
-    List<ExampleRecord>? records,
+    List<ExtendedExampleRecord>? records,
     this.stage = ListStage.idle,
   }) : recordsStore = records {
     if (isInitialized && stage != ListStage.complete && this.records.isEmpty) {
@@ -12,20 +12,20 @@ class ListState {
     }
   }
 
-  final List<ExampleRecord>? recordsStore;
+  final List<ExtendedExampleRecord>? recordsStore;
 
   bool get isInitialized => recordsStore != null;
-  
+
   final ListStage stage;
 
-  List<ExampleRecord> get records => recordsStore ?? List<ExampleRecord>.empty();
+  List<ExtendedExampleRecord> get records => recordsStore ?? List<ExtendedExampleRecord>.empty();
 
   bool get hasError => stage == ListStage.error;
 
   bool get isLoading => stage == ListStage.loading;
 
   ListState copyWith({
-    List<ExampleRecord>? records,
+    List<ExtendedExampleRecord>? records,
     ListStage? stage,
   }) {
     return ListState(
