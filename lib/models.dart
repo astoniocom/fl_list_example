@@ -26,4 +26,10 @@ class ExampleRecordQuery {
   int compareRecords(ExampleRecord record1, ExampleRecord record2) {
     return record1.weight.compareTo(record2.weight);
   }
+
+  ExampleRecordQuery copyWith({int? weightGt}) {
+    return ExampleRecordQuery(
+      weightGt: weightGt ?? this.weightGt,
+    );
+  }
 }
