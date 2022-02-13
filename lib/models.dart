@@ -12,6 +12,17 @@ class ExampleRecord {
   });
 }
 
+class ExtendedExampleRecord {
+  final ExampleRecord base;
+  final bool isFavourite;
+
+  const ExtendedExampleRecord({required this.base, required this.isFavourite});
+
+  ID get id => base.id;
+  int get weight => base.weight;
+  String get title => base.title;
+}
+
 class ExampleRecordQuery {
   final String? contains;
   final int? weightGt;

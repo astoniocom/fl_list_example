@@ -5,6 +5,7 @@ import 'package:fl_list_example/list_state.dart';
 import 'package:fl_list_example/models.dart';
 import 'package:fl_list_example/repository.dart';
 import 'package:flutter/foundation.dart';
+import 'package:synchronized/synchronized.dart';
 
 class RecordsUpdates {
   final Set<ID> deletedKeys;
@@ -16,13 +17,13 @@ class RecordsUpdates {
 
 class _ListChange {
   final Iterable<ExampleRecord> recordsToInsert;
-  final Iterable<ExampleRecord> recordsToRemove;
+  final Iterable<ExtendedExampleRecord> recordsToRemove;
 
   _ListChange({this.recordsToInsert = const {}, this.recordsToRemove = const {}});
 }
 
 class _FetchRecordsResult {
-  final List<ExampleRecord> records;
+  final List<ExtendedExampleRecord> records;
   final bool loadedAllRecords;
 
   _FetchRecordsResult({required this.records, required this.loadedAllRecords});
@@ -31,6 +32,7 @@ class _FetchRecordsResult {
 class ListController extends ValueNotifier<ListState> {
   final ExampleRecordQuery query;
   late StreamSubscription _changesSubscription;
+  final lock = Lock();
 
   ListController({required this.query}) : super(ListState()) {
     loadRecords(query: query);
@@ -54,12 +56,14 @@ class ListController extends ValueNotifier<ListState> {
         })
         .map(_filterRecords)
         .where((event) => event.recordsToInsert.isNotEmpty || event.recordsToRemove.isNotEmpty)
-        .map((change) {
-          final result = List.of(value.records)..removeWhere((r) => change.recordsToRemove.contains(r));
-          return result..insertAll(0, change.recordsToInsert);
+        .asyncMap((change) async {
+          return lock.synchronized(() async {
+            final result = List.of(value.records)..removeWhere((r) => change.recordsToRemove.contains(r));
+            return result..insertAll(0, await MockRepository().extendRecords(change.recordsToInsert));
+          });
         })
         .map((updatedList) {
-          return updatedList..sort(query.compareRecords);
+          return updatedList..sort((r1, r2) => query.compareRecords(r1.base, r2.base));
         })
         .listen((updatedList) {
           value = value.copyWith(records: updatedList);
@@ -109,27 +113,28 @@ class ListController extends ValueNotifier<ListState> {
 
   Future<_FetchRecordsResult> fetchRecords(ExampleRecordQuery? query) async {
     final loadedRecords = await MockRepository().queryRecords(query);
-    return _FetchRecordsResult(records: loadedRecords, loadedAllRecords: loadedRecords.length < kBatchSize);
+    return _FetchRecordsResult(records: await MockRepository().extendRecords(loadedRecords), loadedAllRecords: loadedRecords.length < kBatchSize);
   }
 
   Future<void> loadRecords({ExampleRecordQuery? query, bool replace = true}) async {
     if (value.isLoading) return;
+    lock.synchronized(() async {
+      value = value.copyWith(loadingFor: replace ? LoadingFor.replace : LoadingFor.add, error: "");
 
-    value = value.copyWith(loadingFor: replace ? LoadingFor.replace : LoadingFor.add, error: "");
+      try {
+        final fetchResult = await fetchRecords(query);
 
-    try {
-      final fetchResult = await fetchRecords(query);
+        final records = [
+          if (!replace) ...value.records,
+          ...fetchResult.records,
+        ];
 
-      final records = [
-        if (!replace) ...value.records,
-        ...fetchResult.records,
-      ];
-
-      value = value.copyWith(loadingFor: LoadingFor.idle, records: records, hasLoadedAllRecords: fetchResult.loadedAllRecords);
-    } catch (e) {
-      value = value.copyWith(loadingFor: LoadingFor.idle, error: e.toString());
-      rethrow;
-    }
+        value = value.copyWith(loadingFor: LoadingFor.idle, records: records, hasLoadedAllRecords: fetchResult.loadedAllRecords);
+      } catch (e) {
+        value = value.copyWith(loadingFor: LoadingFor.idle, error: e.toString());
+        rethrow;
+      }
+    });
   }
 
   directionalLoad() async {

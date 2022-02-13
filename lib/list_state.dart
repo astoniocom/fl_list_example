@@ -4,7 +4,7 @@ enum LoadingFor { idle, replace, add }
 
 class ListState {
   ListState({
-    List<ExampleRecord>? records,
+    List<ExtendedExampleRecord>? records,
     this.loadingFor = LoadingFor.idle,
     this.hasLoadedAllRecords = false,
     this.error = '', // 1
@@ -20,11 +20,11 @@ class ListState {
   final LoadingFor loadingFor;
   final bool hasLoadedAllRecords;
 
-  final List<ExampleRecord>? recordsStore; // 3
+  final List<ExtendedExampleRecord>? recordsStore; // 3
 
   bool get isInitialized => recordsStore != null; // 3
 
-  List<ExampleRecord> get records => recordsStore ?? List<ExampleRecord>.empty(); // 4
+  List<ExtendedExampleRecord> get records => recordsStore ?? List<ExtendedExampleRecord>.empty(); // 4
 
   final String error;
 
@@ -36,7 +36,7 @@ class ListState {
 
   // 7
   ListState copyWith({
-    List<ExampleRecord>? records,
+    List<ExtendedExampleRecord>? records,
     LoadingFor? loadingFor,
     bool? hasLoadedAllRecords,
     String? error,

@@ -78,7 +78,7 @@ class _HomePageState extends State<HomePage> {
             return ListStatusIndicator(listState, onRepeat: listController.repeatQuery);
           }
 
-          final ExampleRecord record = listState.records[index];
+          final record = listState.records[index];
           return RecordTeaser(record: record);
         },
         itemCount: itemCount,

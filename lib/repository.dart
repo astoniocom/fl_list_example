@@ -23,6 +23,7 @@ class MockRepository {
 
   final StreamController<RecordEvent> eventController = StreamController<RecordEvent>();
   late Stream<RecordEvent> rawEvents = eventController.stream.asBroadcastStream();
+  final Set<ID> _favourites = List.generate(kRecordsToGenerate ~/ 3, (_) => Random().nextInt(kRecordsToGenerate)).toSet();
 
   static final MockRepository _instance = MockRepository._internal();
   factory MockRepository() => _instance;
@@ -75,5 +76,20 @@ class MockRepository {
     if (record == null) throw RecordDoesNotExist();
     _store.remove(record);
     eventController.add(RecordDeletedEvent(id));
+  }
+
+  Future<List<ID>> getFavourites(Iterable<ID> idsToCheck) async {
+    return idsToCheck.where((id) => _favourites.contains(id)).toList();
+  }
+
+  Future<List<ExtendedExampleRecord>> extendRecords(Iterable<ExampleRecord> records) async {
+    final idsToResolve = records.map((r) => r.id);
+    final favouriteIds = await getFavourites(idsToResolve);
+    return records
+        .map((r) => ExtendedExampleRecord(
+              base: r,
+              isFavourite: favouriteIds.contains(r.id),
+            ))
+        .toList();
   }
 }
