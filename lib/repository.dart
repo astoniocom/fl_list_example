@@ -3,6 +3,7 @@ import 'package:english_words/english_words.dart';
 import 'package:fl_list_example/models.dart';
 
 const kRecordsToGenerate = 100;
+const kBatchSize = 15;
 
 class MockRepository {
   final List<ExampleRecord> _store = List<ExampleRecord>.generate(
@@ -23,6 +24,8 @@ class MockRepository {
     final sortedList = List.of(_store);
     if (query != null) sortedList.sort(query.compareRecords);
 
-    return sortedList.where((record) => query == null || query.fits(record)).toList();
+    // if ((query?.weightGt ?? 0) > 400) throw "Test Exception";
+
+    return sortedList.where((record) => query == null || query.fits(record)).take(kBatchSize).toList();
   }
 }
